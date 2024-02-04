@@ -49,4 +49,6 @@ def constructTokens(tokens):
             continue
         else:
             result.extend((toknum,tokval))
+    # r = [t[1] for t in result]
+    # print("".join(r))
     return result
