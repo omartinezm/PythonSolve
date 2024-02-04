@@ -12,13 +12,13 @@ def parse(str):
 
 def constructTokens(tokens):
     result = []
-    add_parenthesis = False
+    n_parenthesis = 0
     for toknum, tokval, _, _, _ in tokens:
         if toknum == NUMBER:
             result.extend([(NAME,'Number'),(OP,'('),(NUMBER,tokval),(OP,')')])
-            if add_parenthesis:
-                result.append((OP,')'))
-                add_parenthesis=False
+            if n_parenthesis>0:
+                result.extend([(OP,')')]*n_parenthesis)
+                n_parenthesis=0
         elif toknum == NAME:
             if len(result)>0:
                 (_,ptokval)=result[-1]
@@ -33,18 +33,20 @@ def constructTokens(tokens):
                     result.extend([(NAME,'Variable'),(OP,'('),(NAME,repr(str(tokval))),(OP,')')])
             else:
                 result.extend([(NAME,'Variable'),(OP,'('),(NAME,repr(str(tokval))),(OP,')')])
-            if add_parenthesis:
-                result.append((OP,')'))
-                add_parenthesis=False
+            if n_parenthesis>0:
+                result.extend([(OP,')')]*n_parenthesis)
+                n_parenthesis=0
         elif toknum == OP:
             if tokval == '+':
                 result.insert(0,(OP,'('))
                 result.insert(0,(NAME,'Add'))
+                result.extend([(OP,',')])
             elif tokval == '-':
                 result.insert(0,(OP,'('))
-                result.insert(0,(NAME,'Difference'))
-            result.append((OP,','))
-            add_parenthesis=True
+                result.insert(0,(NAME,'Add'))
+                result.extend([(OP,','),(NAME,'Negative'),(OP,'(')])
+                n_parenthesis+=1
+            n_parenthesis+=1
         elif toknum in [ENCODING, NEWLINE, ENDMARKER]:
             continue
         else:
@@ -52,3 +54,5 @@ def constructTokens(tokens):
     # r = [t[1] for t in result]
     # print("".join(r))
     return result
+
+print(parse("3+2-1=x"))
