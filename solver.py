@@ -102,9 +102,9 @@ def rightToLeft(expr):
 def productToQuotient(expr):
     left= expr.args[0]
     right= expr.args[1]
-    if isinstance(left,Product) and isinstance(left.args[0],Number):
+    if isinstance(left,Product) and isinstance(left.args[0],Number) and isinstance(right,Number):
         return Equal(left.args[1],Quotient(right,left.args[0]))
-    elif isinstance(right,Product) and isinstance(right.args[0],Number):
+    elif isinstance(right,Product) and isinstance(right.args[0],Number) and isinstance(left,Number):
         return Equal(Quotient(left,right.args[0]),right.args[1])
     else:
         return expr
@@ -154,8 +154,7 @@ def measureDepth(node,result):
 
 oper = [reduceDiff,leftToRight,rightToLeft,productToQuotient,reduceQuotient,flip]
 
-input = parse('-1=2x')
-# input = productToQuotient(input)
+input = parse('2x=2x+2')
 def solve(input):
     curr = collapser(input)
     path = [str(input)]
@@ -169,8 +168,6 @@ def solve(input):
             new = collapser(new)
             print(curr,'->',new,': ',operation,'->',n_measure)
             if n_measure<curr_measure:
-                # print(curr,"->",new,"->",n_measure," ("+str(operation)+")")
-                # print(operation)
                 curr=copy.copy(new)
                 curr_measure=n_measure
                 path.append(str(curr))
@@ -178,12 +175,4 @@ def solve(input):
         max_iter-=1
     return path
 
-# input=productToQuotient(input)
-# print(input)
-# input=reduceQuotient(input)
-
-# print(measure(input))
-# input = parse('2=x+5x')
-# print(leftToRight(input))
-# input="1+2+3"
 print(solve(input))
