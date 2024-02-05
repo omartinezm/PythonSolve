@@ -4,13 +4,13 @@ import copy
 
 strut = ['equal','add','negative','difference','product','quotient','number','variable']
 
-def collisioner(expr):
+def collapser(expr):
     if isinstance(expr,Add) and isinstance(expr.args[0],Add):
         return Add(expr.args[0],expr.args[0].args[0])
     else:
         n_expr = copy.copy(expr)
-        if n_expr.__class__.__name__ in strut:
-            n_expr.args=[collisioner(arg) for arg in n_expr.args]
+        if len(n_expr.args)>1:
+            n_expr.args=[collapser(arg) for arg in n_expr.args]
         return n_expr
 
 def reduceAdd(expr):
@@ -57,7 +57,7 @@ def reduceDiffArg(expr):
             num2=term2.args[0]
             if isinstance(num1,Number) and isinstance(num2,Number):
                 num = num1.value-num2.value
-                return Product(num,term1.args[1])
+                return Product(Number(num),term1.args[1])
         elif isinstance(term1,Number) and isinstance(term2,Number):
             num = term1.value-term2.value
             return Number(num)
@@ -69,7 +69,7 @@ def reduceDiffArg(expr):
             num2=term2.args[0]
             if isinstance(num1,Number) and isinstance(num2,Number):
                 num = num1.value+num2.value
-                return Product(num,term1.args[1])
+                return Product(Number(num),term1.args[1])
         elif isinstance(term1,Number) and isinstance(term2,Number):
             num = term1.value+term2.value
             return Number(num)
@@ -104,7 +104,7 @@ def productToQuotient(expr):
     right= expr.args[1]
     if isinstance(left,Product) and isinstance(left.args[0],Number):
         return Equal(left.args[1],Quotient(right,left.args[0]))
-    elif isinstance(left,Product) and isinstance(right.args[0],Number):
+    elif isinstance(right,Product) and isinstance(right.args[0],Number):
         return Equal(Quotient(left,right.args[0]),right.args[1])
     else:
         return expr
@@ -113,8 +113,8 @@ def flip(expr):
     return Equal(expr.args[1],expr.args[0])
 
 def reduceQuotient(expr):
-    left= expr.args[0]
-    right= expr.args[1]
+    left = expr.args[0]
+    right = expr.args[1]
     resL = dummyReduction(left)
     resR = dummyReduction(right)
     if resL[1]:
@@ -126,55 +126,60 @@ def reduceQuotient(expr):
 def dummyReduction(expr):
     if isinstance(expr,Quotient):
         if isinstance(expr.args[0],Product) and isinstance(expr.args[0].args[0],Number):
-            return [Product(Number(expr.args[0].args[0].value/expr.args[1].value),expr.args[0].args[1]),True]
+            return (Product(Number(expr.args[0].args[0].value/expr.args[1].value),expr.args[0].args[1]),True)
         elif isinstance(expr.args[0],Number):
-            return [Number(expr.args[0].value/expr.args[1].value),True]
-    else:
-        return [expr,False]
+            return (Number(expr.args[0].value/expr.args[1].value),True)
+    return (expr,False)
 
 def measure(graph):
     if isinstance(graph.args[0],Variable) and isinstance(graph.args[1],Number):
         return 0
-    else:
-        depthL = measureDepth(graph.args[0],1)
-        depthR = measureDepth(graph.args[1],1)
-        res = (depthL+depthR)**2*depthL
-        return res
+    left = graph.args[0]
+    right = graph.args[1]
+    depthL = measureDepth(left,1)
+    depthR = measureDepth(right,1)
+    res = (depthL+depthR)**2
+    return res
 
 def measureDepth(node,result):
-    if len(node.args)==1:
-        if isinstance(node,Variable):
-            return result-0.5
-        return result
+    if isinstance(node,Variable):
+        return result*0.5
     else:
-        res = [measureDepth(n,result+1) for n in node.args]
-        return min(res)
+        if len(node.args)>1:
+            res = [measureDepth(n,result+1) for n in node.args]
+        else:
+            res = [result]
+        return max(res)
 
 
 oper = [reduceDiff,leftToRight,rightToLeft,productToQuotient,reduceQuotient,flip]
 
-input = parse('2=3x+5x')
+input = parse('-1=2x')
+# input = productToQuotient(input)
 def solve(input):
-    curr = collisioner(input)
+    curr = collapser(input)
     path = [str(input)]
-    max_iter =2
+    max_iter =10
     curr_measure = measure(input)
     print(curr,"->",curr_measure," (start)")
     while curr_measure>0 and max_iter>0:
         for operation in oper:
             new = operation(curr)
             n_measure = measure(new)
+            new = collapser(new)
             print(curr,'->',new,': ',operation,'->',n_measure)
             if n_measure<curr_measure:
-                print(curr,"->",new,"->",n_measure," ("+str(operation)+")")
+                # print(curr,"->",new,"->",n_measure," ("+str(operation)+")")
                 # print(operation)
                 curr=copy.copy(new)
                 curr_measure=n_measure
                 path.append(str(curr))
+                break
         max_iter-=1
     return path
 
 # input=productToQuotient(input)
+# print(input)
 # input=reduceQuotient(input)
 
 # print(measure(input))

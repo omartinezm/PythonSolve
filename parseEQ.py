@@ -42,10 +42,12 @@ def constructTokens(tokens):
                 result.insert(0,(NAME,'Add'))
                 result.extend([(OP,',')])
             elif tokval == '-':
-                result.insert(0,(OP,'('))
-                result.insert(0,(NAME,'Add'))
-                result.extend([(OP,','),(NAME,'Negative'),(OP,'(')])
-                n_parenthesis+=1
+                if len(result)>0:
+                    result.insert(0,(OP,'('))
+                    result.insert(0,(NAME,'Add'))
+                    result.extend([(OP,',')])
+                    n_parenthesis+=1
+                result.extend([(NAME,'Negative'),(OP,'(')])
             n_parenthesis+=1
         elif toknum in [ENCODING, NEWLINE, ENDMARKER]:
             continue
