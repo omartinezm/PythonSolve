@@ -1,6 +1,7 @@
 from structures import *
 from tokenize import tokenize, untokenize, NUMBER, STRING, NAME, OP, NAME, ENCODING, ENDMARKER, NEWLINE
 from io import BytesIO
+import copy
 
 def parse(str):
     left, right= str.split('=')
@@ -8,7 +9,22 @@ def parse(str):
     tokensR = tokenize(BytesIO(right.encode('utf-8')).readline)
     result = [constructTokens(tokensL),constructTokens(tokensR)]
     res = Equal(eval(untokenize(result[0])),eval(untokenize(result[1])))
-    return res
+    return collapser(res)
+
+def collapser(expr):
+    if isinstance(expr,Add):
+        n_args = [] 
+        for arg in expr.args:
+            if isinstance(arg,Add):
+                n_args.extend(collapser(arg).args)
+            else:
+                n_args.append(arg)
+        return Add(*n_args)
+    else:
+        n_expr = copy.copy(expr)
+        if len(n_expr.args)>1:
+            n_expr.args=[collapser(arg) for arg in n_expr.args]
+        return n_expr
 
 def constructTokens(tokens):
     result = []

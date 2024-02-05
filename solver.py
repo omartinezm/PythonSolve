@@ -4,46 +4,6 @@ import copy
 
 strut = ['equal','add','negative','difference','product','quotient','number','variable']
 
-def collapser(expr):
-    if isinstance(expr,Add) and isinstance(expr.args[0],Add):
-        return Add(expr.args[0],expr.args[0].args[0])
-    else:
-        n_expr = copy.copy(expr)
-        if len(n_expr.args)>1:
-            n_expr.args=[collapser(arg) for arg in n_expr.args]
-        return n_expr
-
-def reduceAdd(expr):
-    left = expr.args[0]
-    right = expr.args[1]
-    if isinstance(left,Add):
-        term1=left.args[0]
-        term2=left.args[1]
-        if isinstance(term1,Product) and isinstance(term2,Product):
-            num1=term1.args[0]
-            num2=term2.args[0]
-            if isinstance(num1,Number) and isinstance(num2,Number):
-                num = num1.value+num2.value
-                left = Product(num,term1.args[1])
-        elif isinstance(term1,Number) and isinstance(term2,Number):
-            num = term1.value+term2.value
-            left = Number(num)
-    elif isinstance(right,Add):
-        term1=right.args[0]
-        term2=right.args[1]
-        if isinstance(term1,Product) and isinstance(term2,Product):
-            num1=term1.args[0]
-            num2=term2.args[0]
-            if isinstance(num1,Number) and isinstance(num2,Number):
-                num = num1.value+num2.value
-                right = Product(num,term1.args[1])
-        elif isinstance(term1,Number) and isinstance(term2,Number):
-            num = term1.value+term2.value
-            right = Number(num)
-    n_expr = expr.__copy__()
-    n_expr.args=[left,right]
-    return n_expr
-
 def reduceDiff(expr):
     n_expr = copy.copy(expr)
     return Equal(*[reduceDiffArg(arg) for arg in n_expr.args])
@@ -62,17 +22,27 @@ def reduceDiffArg(expr):
             num = term1.value-term2.value
             return Number(num)
     if isinstance(expr,Add):
-        term1=expr.args[0]
-        term2=expr.args[1]
-        if isinstance(term1,Product) and isinstance(term2,Product):
-            num1=term1.args[0]
-            num2=term2.args[0]
-            if isinstance(num1,Number) and isinstance(num2,Number):
-                num = num1.value+num2.value
-                return Product(Number(num),term1.args[1])
-        elif isinstance(term1,Number) and isinstance(term2,Number):
-            num = term1.value+term2.value
-            return Number(num)
+        con_coef = 0
+        var_coef = 0
+        var_liter = None
+        for arg in expr.args:
+            (var_coef,var_liter) = addTerm(var_coef,var_liter,arg,)
+            if isinstance(arg,Number):
+                con_coef+=arg.value
+            elif isinstance(arg,Negative):
+                if isinstance(arg.args[0],Number):
+                    con_coef-=arg.args[0].value
+                else:
+                    (var_coef,var_liter) = addTerm(var_coef,var_liter,arg.args[0],False)
+        res = None
+        if con_coef:
+            res = Number(con_coef)
+        if var_coef:
+            if res:
+                res = Add(Product(Number(var_coef),var_liter),res) if var_liter else Add(var_liter,res)
+            else:
+                res = Product(Number(var_coef),var_liter) if var_liter else var_liter
+        return res
     if len(expr.args)>1:
         n_expr = copy.copy(expr)
         n_expr.args = [reduceDiffArg(arg) for arg in n_expr.args]
@@ -80,6 +50,25 @@ def reduceDiffArg(expr):
 
     return expr
    
+def addTerm(var_coef,var_liter,expr,positive=True):
+    var_liter = var_liter
+    if isinstance(expr,Variable):
+        var_coef +=1
+        var_liter = expr
+    elif isinstance(expr,Product):
+        if isinstance(expr.args[0],Number) and isinstance(expr.args[1],Variable):
+            var_coef += expr.args[0].value if positive else -expr.args[0].value
+            var_liter = expr.args[1]
+        if isinstance(expr.args[1],Number) and isinstance(expr.args[0],Variable):
+            var_coef += expr.args[1].value if positive else -expr.args[0].value
+            var_liter = expr.args[0]
+        if isinstance(expr.args[0],Negative) and isinstance(expr.args[1],Variable):
+            var_coef += expr.args[0].args[0].value if positive else -expr.args[0].args[0].value
+            var_liter = expr.args[1]
+        if isinstance(expr.args[1],Negative) and isinstance(expr.args[0],Variable):
+            var_coef += expr.args[1].args[0].value if positive else -expr.args[0].args[0].value
+            var_liter = expr.args[0]
+    return (var_coef,var_liter)
     
 def leftToRight(expr):
     left= expr.args[0]
@@ -154,18 +143,18 @@ def measureDepth(node,result):
 
 oper = [reduceDiff,leftToRight,rightToLeft,productToQuotient,reduceQuotient,flip]
 
-input = parse('2x=2x+2')
+# input = parse('2=x+2x')
+input=parse('1=x-2x+3-2')
 def solve(input):
-    curr = collapser(input)
     path = [str(input)]
-    max_iter =10
+    max_iter = 1
+    curr = input
     curr_measure = measure(input)
     print(curr,"->",curr_measure," (start)")
     while curr_measure>0 and max_iter>0:
         for operation in oper:
             new = operation(curr)
             n_measure = measure(new)
-            new = collapser(new)
             print(curr,'->',new,': ',operation,'->',n_measure)
             if n_measure<curr_measure:
                 curr=copy.copy(new)
@@ -175,4 +164,5 @@ def solve(input):
         max_iter-=1
     return path
 
+# print(reduceDiff(input))
 print(solve(input))
