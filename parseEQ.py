@@ -54,5 +54,3 @@ def constructTokens(tokens):
     # r = [t[1] for t in result]
     # print("".join(r))
     return result
-
-print(parse("3+2-1=x"))

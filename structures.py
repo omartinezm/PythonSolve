@@ -5,6 +5,9 @@ class Equal:
 
     def __str__(self) -> str:
         return str(self.args[0])+'='+str(self.args[1])
+    
+    def __name__(self) -> str:
+        return 'equal'
 
 class Add:
     def __init__(self, term1,*kwargs) -> None:
@@ -13,6 +16,9 @@ class Add:
 
     def __str__(self) -> str:
         return "+".join([str(k) for k in self.args])
+    
+    def __name__(self) -> str:
+        return 'add'
 
 class Negative:
     def __init__(self,value) -> None:
@@ -20,6 +26,9 @@ class Negative:
     
     def __str__(self) -> str:
         return '-'+str(self.args[0])
+    
+    def __name__(self) -> str:
+        return 'negative'
 
 class Difference:
     def __init__(self, term1,term2) -> None:
@@ -28,6 +37,9 @@ class Difference:
 
     def __str__(self) -> str:
         return str(self.args[0])+'-'+str(self.args[1])
+    
+    def __name__(self) -> str:
+        return 'difference'
 
 class Product:
     def __init__(self, factor1,factor2) -> None:
@@ -36,6 +48,9 @@ class Product:
 
     def __str__(self) -> str:
         return str(self.args[0])+'*'+str(self.args[1])
+    
+    def __name__(self) -> str:
+        return 'product'
 
 class Quotient:
     def __init__(self, numerator,denominator) -> None:
@@ -45,6 +60,9 @@ class Quotient:
     def __str__(self) -> str:
         return str(self.args[0])+'/'+str(self.args[1])
     
+    def __name__(self) -> str:
+        return 'quotient'
+    
 class Number:
     def __init__(self,value) -> None:
         self.args = [value]
@@ -53,6 +71,9 @@ class Number:
     def __str__(self) -> str:
         return str(self.value)
     
+    def __name__(self) -> str:
+        return 'number'
+    
 class Variable:
     def __init__(self,name) -> None:
         self.args = [name]
@@ -60,6 +81,6 @@ class Variable:
 
     def __str__(self) -> str:
         return str(self.name)
-
-
-print(Add(1,2,3))
+    
+    def __name__(self) -> str:
+        return 'variable'

@@ -2,12 +2,15 @@ from parseEQ import parse
 from structures import *
 import copy
 
+strut = ['equal','add','negative','difference','product','quotient','number','variable']
+
 def collisioner(expr):
     if isinstance(expr,Add) and isinstance(expr.args[0],Add):
         return Add(expr.args[0],expr.args[0].args[0])
     else:
         n_expr = copy.copy(expr)
-        n_expr.args=[*[collisioner(arg) for arg in n_expr.args]]
+        if n_expr.__class__.__name__ in strut:
+            n_expr.args=[collisioner(arg) for arg in n_expr.args]
         return n_expr
 
 def reduceAdd(expr):
@@ -150,9 +153,9 @@ def measureDepth(node,result):
 
 oper = [reduceDiff,leftToRight,rightToLeft,productToQuotient,reduceQuotient,flip]
 
-input = parse('2=x+5x')
+input = parse('2=3x+5x')
 def solve(input):
-    curr = input
+    curr = collisioner(input)
     path = [str(input)]
     max_iter =2
     curr_measure = measure(input)
@@ -170,7 +173,6 @@ def solve(input):
                 path.append(str(curr))
         max_iter-=1
     return path
-    return list(set(path))
 
 # input=productToQuotient(input)
 # input=reduceQuotient(input)
@@ -178,5 +180,5 @@ def solve(input):
 # print(measure(input))
 # input = parse('2=x+5x')
 # print(leftToRight(input))
-input="1+2+3"
-print(collisioner(input))
+# input="1+2+3"
+print(solve(input))
