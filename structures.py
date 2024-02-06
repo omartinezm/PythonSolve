@@ -25,7 +25,7 @@ class Negative:
         self.args = [value]
     
     def __str__(self) -> str:
-        return '-'+str(self.args[0])
+        return '(-'+str(self.args[0])+')'
     
     def __name__(self) -> str:
         return 'negative'

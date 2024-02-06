@@ -1,17 +1,33 @@
 from structures import *
-from tokenize import tokenize, untokenize, NUMBER, STRING, NAME, OP, NAME, ENCODING, ENDMARKER, NEWLINE
+from tokenize import tokenize, untokenize, NUMBER, NAME, OP, NAME, ENCODING, ENDMARKER, NEWLINE
 from io import BytesIO
 import copy
 
 def parse(str):
-    left, right= str.split('=')
-    tokensL = tokenize(BytesIO(left.encode('utf-8')).readline)
-    tokensR = tokenize(BytesIO(right.encode('utf-8')).readline)
-    result = [constructTokens(tokensL),constructTokens(tokensR)]
-    res = Equal(eval(untokenize(result[0])),eval(untokenize(result[1])))
-    return collapser(res)
+    """ This function parse the string into something readable for the machine
+    
+        This parser works only on expressions of first degree. Can be extended to any other
+        kind of mathematical expressions.
+    """
+    if str.find('=') == -1:
+        tokens = tokenize(BytesIO(str.encode('utf-8')).readline)
+        result = constructTokens(tokens)
+        res = eval(untokenize(result))
+        return collapser(res)
+    else:
+        left, right= str.split('=')
+        tokensL = tokenize(BytesIO(left.encode('utf-8')).readline)
+        tokensR = tokenize(BytesIO(right.encode('utf-8')).readline)
+        result = [constructTokens(tokensL),constructTokens(tokensR)]
+        res = Equal(eval(untokenize(result[0])),eval(untokenize(result[1])))
+        return collapser(res)
 
 def collapser(expr):
+    """ This function transforms expressions to a better expression
+        
+        >   Add(Add(1,2),3) into Add(1,2,3)
+        >   Product(Negative(TERM1),TERM2) into Negative(Product(TERM1,TERM2))
+    """
     if isinstance(expr,Add):
         n_args = [] 
         for arg in expr.args:
@@ -27,6 +43,10 @@ def collapser(expr):
         return n_expr
 
 def constructTokens(tokens):
+    """ Heart of the parser: transform the tokens into readable object.
+
+        Returns a list of new tokens.
+    """
     result = []
     n_parenthesis = 0
     for toknum, tokval, _, _, _ in tokens:
@@ -68,16 +88,4 @@ def constructTokens(tokens):
             continue
         else:
             result.extend((toknum,tokval))
-    r = [t[1] for t in result]
-    print("".join(r))
     return result
-
-parse('1=1-2x')
-parse('1=2+2x')
-parse('1=1-x')
-parse('1=x-x')
-parse('1=1-1')
-parse('1=1+2')
-parse('-1=-1')
-parse('1=2x+1+x')
-parse('x-x=1')
