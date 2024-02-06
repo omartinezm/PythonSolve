@@ -10,8 +10,8 @@ class Equal:
         return 'equal'
 
 class Add:
-    def __init__(self, term1,*kwargs) -> None:
-        self.args = [term1,*kwargs]
+    def __init__(self, *kwargs) -> None:
+        self.args = [*kwargs]
         self.name='Sum'
 
     def __str__(self) -> str:

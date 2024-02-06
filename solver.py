@@ -1,4 +1,4 @@
-from parseEQ import parse
+from parseEQ import parse, collapser
 from structures import *
 import copy
 
@@ -48,7 +48,7 @@ def reduceDiffArg(expr):
         n_expr.args = [reduceDiffArg(arg) for arg in n_expr.args]
         return n_expr
 
-    return expr
+    return [expr]
    
 def addTerm(var_coef,var_liter,expr,positive=True):
     var_liter = var_liter
@@ -71,22 +71,64 @@ def addTerm(var_coef,var_liter,expr,positive=True):
     return (var_coef,var_liter)
     
 def leftToRight(expr):
-    left= expr.args[0]
-    right= expr.args[1]
+    left = expr.args[0]
+    right = expr.args[1]
+    res = [expr]
     if isinstance(left,Add):
-        return Equal(left.args[0],Difference(right,left.args[1]))
+        for n, arg in enumerate(left.args):
+            term = arg
+            n_args = left.args.copy()
+            n_args.pop(n)
+            temp = None
+            if len(n_args)==1:
+                temp = n_args[0]
+            else:
+                temp = Add(*n_args)
+            res.append(collapser(Equal(temp,Add(right,Negative(term))) if not isinstance(term,Negative) else Equal(temp,Add(right,term.args[0]))))
     elif isinstance(left,Difference):
-        return Equal(left.args[0],Add(right,left.args[1]))
-    return expr
+        for n, arg in enumerate(left.args):
+            term = arg
+            n_args = left.args.copy()
+            n_args.pop(n)
+            temp = None
+            if len(n_args)==1:
+                temp = n_args[0]
+            else:
+                temp = Add(*n_args)
+            res.append(collapser(Equal(temp,Add(right,term))))
+    elif isinstance(left,Variable) or isinstance(left,Number) or isinstance(left,Negative):
+        res.append(collapser(Equal(Number(0),Add(right,Negative(left))) if not isinstance(left,Negative) else Equal(Number(0),Add(right,left.args[0]))))
+    return res
     
 def rightToLeft(expr):
-    left= expr.args[0]
-    right= expr.args[1]
+    left = expr.args[0]
+    right = expr.args[1]
+    res = [expr]
     if isinstance(right,Add):
-        return Equal(Difference(left,right.args[1]),right.args[0])
+        for n, arg in enumerate(right.args):
+            term = arg
+            n_args = right.args.copy()
+            n_args.pop(n)
+            temp = None
+            if len(n_args)==1:
+                temp = n_args[0]
+            else:
+                temp = Add(*n_args)
+            res.append(collapser(Equal(Add(left,Negative(term)),temp) if not isinstance(term,Negative) else Equal(Add(left,term.args[0]),temp)))
     elif isinstance(right,Difference):
-        return Equal(Add(left,right.args[1]),right.args[0])
-    return expr
+        for n, arg in enumerate(right.args):
+            term = arg
+            n_args = right.args.copy()
+            n_args.pop(n)
+            temp = None
+            if len(n_args)==1:
+                temp = n_args[0]
+            else:
+                temp = Add(*n_args)
+            res.append(collapser(Equal(Add(left,term),temp)))
+    elif isinstance(right,Variable) or isinstance(right,Number) or isinstance(right,Negative):
+        res.append(collapser(Equal(Add(left,Negative(right)),Number(0)) if not isinstance(right,Negative) else Equal(Add(left,right.args[0]),Number(0))))
+    return res
 
 def productToQuotient(expr):
     left= expr.args[0]
@@ -127,7 +169,7 @@ def measure(graph):
     right = graph.args[1]
     depthL = measureDepth(left,1)
     depthR = measureDepth(right,1)
-    res = (depthL+depthR)**2
+    res = (depthL*depthR)**2
     return res
 
 def measureDepth(node,result):
@@ -144,7 +186,7 @@ def measureDepth(node,result):
 oper = [reduceDiff,leftToRight,rightToLeft,productToQuotient,reduceQuotient,flip]
 
 # input = parse('2=x+2x')
-input=parse('1=x-2x+3-2')
+input=parse('2-x=x-2')
 def solve(input):
     path = [str(input)]
     max_iter = 1
@@ -164,5 +206,8 @@ def solve(input):
         max_iter-=1
     return path
 
-# print(reduceDiff(input))
-print(solve(input))
+print(input)
+# print(rightToLeft(input))
+for t in leftToRight(input):
+    print(t)
+# print(solve(input))

@@ -29,14 +29,19 @@ def collapser(expr):
 def constructTokens(tokens):
     result = []
     n_parenthesis = 0
+    isneg=False
     for toknum, tokval, _, _, _ in tokens:
         if toknum == NUMBER:
+            if isneg:
+                isneg = False
             result.extend([(NAME,'Number'),(OP,'('),(NUMBER,tokval),(OP,')')])
             if n_parenthesis>0:
                 result.extend([(OP,')')]*n_parenthesis)
                 n_parenthesis=0
         elif toknum == NAME:
-            if len(result)>0:
+            if isneg:
+                isneg = False
+            elif len(result)>0:
                 (_,ptokval)=result[-1]
                 if ptokval!=',':
                     index = -1
@@ -47,11 +52,12 @@ def constructTokens(tokens):
                     result[len(result)+index+3:len(result)+index+3] = [(OP,','),(NAME,'Variable'),(OP,'('),(NAME,repr(str(tokval))),(OP,')'),(OP,')')]
                 else:
                     result.extend([(NAME,'Variable'),(OP,'('),(NAME,repr(str(tokval))),(OP,')')])
-            else:
+            if n_parenthesis>0 and not isneg:
                 result.extend([(NAME,'Variable'),(OP,'('),(NAME,repr(str(tokval))),(OP,')')])
-            if n_parenthesis>0:
                 result.extend([(OP,')')]*n_parenthesis)
                 n_parenthesis=0
+            else:
+                result.extend([(NAME,'Variable'),(OP,'('),(NAME,repr(str(tokval))),(OP,')')])
         elif toknum == OP:
             if tokval == '+':
                 result.insert(0,(OP,'('))
@@ -64,11 +70,20 @@ def constructTokens(tokens):
                     result.extend([(OP,',')])
                     n_parenthesis+=1
                 result.extend([(NAME,'Negative'),(OP,'(')])
+                isneg = True
             n_parenthesis+=1
         elif toknum in [ENCODING, NEWLINE, ENDMARKER]:
             continue
         else:
             result.extend((toknum,tokval))
-    # r = [t[1] for t in result]
-    # print("".join(r))
+    r = [t[1] for t in result]
+    print("".join(r))
     return result
+
+parse('1=1-2x')
+parse('1=2+2x')
+parse('1=1-x')
+parse('1=x-x')
+parse('1=1-1')
+parse('1=2x+1+x')
+parse('x-x=1')
