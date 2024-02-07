@@ -211,9 +211,9 @@ def measure(graph):
         return 0
     left = graph.args[0]
     right = graph.args[1]
-    depthL = depth(left,[0,0])
-    depthR = depth(right,[0,0])
-    res = (depthL[0]+depthR[0])**2+depthL[1]+depthR[1]
+    depthL = depth(left,[1,1])
+    depthR = depth(right,[1,1])
+    res = (1-depthL[1])**2+(1-depthL[1])**2+depthR[0]+depthL[0]
     return res
 
 def depth(node,p_res):
@@ -221,7 +221,7 @@ def depth(node,p_res):
     if isinstance(node,Variable) or isinstance(node,Number):
         res[1] += 1
     elif isinstance(node, Negative) and isinstance(node.args[0],Number):
-        pass
+        res[1] += 1
     else:
         if len(node.args)>1:
             res[0] += 1
@@ -232,14 +232,14 @@ def depth(node,p_res):
 
 oper = [reduceDiff,reduceSign,multiplyByMinus,leftToRight,rightToLeft,productToQuotient,reduceQuotient,flip]
 
-input=parse('2x-3x=1')
+input=parse('2x=3x+1')
 def solve(input):
     path = [str(input)]
     max_iter = 10
     curr = input
     curr_measure = measure(input)
     print(curr,"->",curr_measure," (start)")
-    while curr_measure>0 and max_iter>0:
+    while curr_measure>2 and max_iter>0:
         change = False
         for operation in oper:
             new = operation(curr)
