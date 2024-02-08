@@ -2,8 +2,6 @@ from parse import parse, collapser
 from structures import *
 import copy
 
-strut = ['equal','add','negative','difference','product','quotient','number','variable']
-
 def reduceDiff(expr):
     # Reduce all possible sum and differences operations at time
     n_expr = copy.copy(expr)
@@ -60,7 +58,7 @@ def addTerm(var_coef,var_liter,expr,positive=True):
             var_coef += expr.args[0].value if positive else -expr.args[0].value
             var_liter = expr.args[1]
         elif isinstance(expr.args[1],Number) and isinstance(expr.args[0],Variable):
-            var_coef += expr.args[1].value if positive else -expr.args[0].value
+            var_coef += expr.args[1].value if positive else -expr.args[1].value
             var_liter = expr.args[0]
         elif isinstance(expr.args[0],Negative) and isinstance(expr.args[1],Variable):
             var_coef += expr.args[0].args[0].value if positive else -expr.args[0].args[0].value
@@ -165,15 +163,9 @@ def dummyReduction(expr):
 def multiplyByMinus(expr):
     left = expr.args[0]
     right = expr.args[1]
-    if isinstance(left,Negative):
-        left = left.args[0]
-    else:
-        left = Negative(left)
-    if isinstance(right,Negative):
-        right = right.args[0]
-    else:
-        right = Negative(right)
-    return [Equal(left,right)]
+    left = left.args[0] if isinstance(left,Negative) else Negative(left)
+    right = right.args[0] if isinstance(right,Negative) else Negative(right)
+    return reduceSign(Equal(left,right))
 
 def reduceSign(expr):
     left = negProduct(expr.args[0])
@@ -207,30 +199,32 @@ def negProduct(expr):
         return n_expr
 
 def measure(graph):
-    if isinstance(graph.args[0],Variable) and isinstance(graph.args[1],Number):
-        return 0
     left = graph.args[0]
     right = graph.args[1]
-    depthL = depth(left,[1,1])
-    depthR = depth(right,[1,1])
-    res = (1-depthL[1])**2+(1-depthL[1])**2+depthR[0]+depthL[0]
+    depthL = depth(left,[1,0])
+    depthR = depth(right,[1,0])
+    res = (1-depthL[1])**2+(1-depthL[1])**2+(1-depthR[0])**2+(1-depthL[0])**2
     return res
 
 def depth(node,p_res):
     res = p_res
     if isinstance(node,Variable) or isinstance(node,Number):
         res[1] += 1
-    elif isinstance(node, Negative) and isinstance(node.args[0],Number):
-        res[1] += 1
-    else:
-        if len(node.args)>1:
+    elif isinstance(node, Negative):
+        if isinstance(node.args[0],Number) or isinstance(node.args[0],Variable):
+            res[1] += 1
+        else:
             res[0] += 1
             for n in node.args:
                 res = depth(n,res)
+    else:
+        res[0] += 1
+        for n in node.args:
+            res = depth(n,res)
     return res
 
 
-oper = [reduceDiff,reduceSign,multiplyByMinus,leftToRight,rightToLeft,productToQuotient,reduceQuotient,flip]
+oper = [reduceDiff,multiplyByMinus,leftToRight,rightToLeft,productToQuotient,reduceQuotient]
 
 input=parse('2x=3x+1')
 def solve(input):
@@ -256,8 +250,16 @@ def solve(input):
         max_iter-=1
     return path
 
-# print(input)
-# print(rightToLeft(input))
+# inputs = ['x=-1','-x=1','2x=1','-2x=-1','-2x+1=1','-2x+1=-1','x=1']
+# inputs = ['x+x=1','-x+x=1','2x-x=1','-2x+x=-1','-2x-x=1','-2x+1=-1','x=1','x+x+1+1=0','x+x+1+1=1+1+2x+2x','x-x+1-1=1']
+# inputs = ['-2*=1','-x+x=1','2x-x=1','-2x+x=-1','-2x-x=1','-2x+1=-1','x=1','x+x+1+1=0','x+x+1+1=1+1+2x+2x','x-x+1-1=1']
+inputs = ['2x=3x+1']
+for i in inputs:
+    r = parse(i)
+    for s in rightToLeft(parse(i)):
+        print(r,'->',s,': ',measure(s))
+
+
 # for t in leftToRight(input):
 #     print(t)
-print(solve(input))
+# print(solve(input))
