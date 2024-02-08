@@ -207,6 +207,7 @@ def measure(graph):
     return res
 
 def depth(node,p_res):
+    # This function find the depth and the number of leaves. Return a list [depth,leaves].
     res = p_res
     if isinstance(node,Variable) or isinstance(node,Number):
         res[1] += 1
@@ -226,20 +227,20 @@ def depth(node,p_res):
 
 oper = [reduceDiff,multiplyByMinus,leftToRight,rightToLeft,productToQuotient,reduceQuotient]
 
-input=parse('2x=3x+1')
+input=parse('x+2=1')
 def solve(input):
     path = [str(input)]
     max_iter = 10
     curr = input
     curr_measure = measure(input)
     print(curr,"->",curr_measure," (start)")
-    while curr_measure>2 and max_iter>0:
+    while curr_measure>0 and max_iter>0:
         change = False
         for operation in oper:
             new = operation(curr)
             for n in new:
                 n_measure = measure(n)
-                print(curr,'->',n,': ',operation,'->',n_measure)
+                print(curr,'->',n,': ',operation.__name__,'->',n_measure)
                 if n_measure<curr_measure:
                     curr=copy.copy(n)
                     curr_measure=n_measure
@@ -253,13 +254,13 @@ def solve(input):
 # inputs = ['x=-1','-x=1','2x=1','-2x=-1','-2x+1=1','-2x+1=-1','x=1']
 # inputs = ['x+x=1','-x+x=1','2x-x=1','-2x+x=-1','-2x-x=1','-2x+1=-1','x=1','x+x+1+1=0','x+x+1+1=1+1+2x+2x','x-x+1-1=1']
 # inputs = ['-2*=1','-x+x=1','2x-x=1','-2x+x=-1','-2x-x=1','-2x+1=-1','x=1','x+x+1+1=0','x+x+1+1=1+1+2x+2x','x-x+1-1=1']
-inputs = ['2x=3x+1']
-for i in inputs:
-    r = parse(i)
-    for s in rightToLeft(parse(i)):
-        print(r,'->',s,': ',measure(s))
+# inputs = ['2x=3x+1']
+# for i in inputs:
+#     r = parse(i)
+#     for s in rightToLeft(parse(i)):
+#         print(r,'->',s,': ',measure(s))
 
 
 # for t in leftToRight(input):
 #     print(t)
-# print(solve(input))
+print(solve(input))
