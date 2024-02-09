@@ -147,7 +147,7 @@ def leftToRight(expr):
             res.append(standarize(Equal(temp,Add(right,term))))
     elif isinstance(left,Variable) or isinstance(left,Number) or isinstance(left,Negative):
         res.append(standarize(Equal(Number(0),Add(right,Negative(left))) if not isinstance(left,Negative) else Equal(Number(0),Add(right,left.args[0]))))
-    return res
+    return (res,True)
     
 def rightToLeft(expr):
     left = expr.args[0]
@@ -177,20 +177,17 @@ def rightToLeft(expr):
             res.append(standarize(Equal(Add(left,term),temp)))
     elif isinstance(right,Variable) or isinstance(right,Number) or isinstance(right,Negative):
         res.append(standarize(Equal(Add(left,Negative(right)),Number(0)) if not isinstance(right,Negative) else Equal(Add(left,right.args[0]),Number(0))))
-    return res
+    return (res,True)
 
 def productToQuotient(expr):
     left= expr.args[0]
     right= expr.args[1]
     if isinstance(left,Product) and isinstance(left.args[0],Number) and isinstance(right,Number):
-        return [Equal(left.args[1],Quotient(right,left.args[0]))]
+        return ([Equal(left.args[1],Quotient(right,left.args[0]))],True)
     elif isinstance(right,Product) and isinstance(right.args[0],Number) and isinstance(left,Number):
-        return [Equal(Quotient(left,right.args[0]),right.args[1])]
+        return ([Equal(Quotient(left,right.args[0]),right.args[1])],True)
     else:
-        return [expr]
-
-def flip(expr):
-    return [Equal(expr.args[1],expr.args[0])]
+        return ([expr],False)
 
 def reduceQuotient(expr):
     left = expr.args[0]
@@ -198,10 +195,10 @@ def reduceQuotient(expr):
     resL = dummyReduction(left)
     resR = dummyReduction(right)
     if resL[1]:
-        return [Equal(resL[0],right)]
+        return ([Equal(resL[0],right)],True)
     elif resR[1]:
-        return [Equal(left,resR[0])]
-    return [expr]
+        return ([Equal(left,resR[0])],True)
+    return ([expr],False)
 
 def dummyReduction(expr):
     if isinstance(expr,Quotient):
@@ -216,12 +213,7 @@ def multiplyByMinus(expr):
     right = expr.args[1]
     left = left.args[0] if isinstance(left,Negative) else Negative(left)
     right = right.args[0] if isinstance(right,Negative) else Negative(right)
-    return standarize(Equal(left,right))
-
-# def reduceSign(expr):
-#     left = negProduct(expr.args[0])
-#     right = negProduct(expr.args[1])
-#     return [standarize(Equal(left,right))]
+    return ([standarize(Equal(left,right))],True)
 
 def measure(graph):
     left = graph.args[0]
@@ -256,41 +248,28 @@ input=parse('x+2=1')
 
 
 path = []
+max_depth = 10
 
 def solve(input,path,solved=False):
     """
         This function search the path from the equation graph to a graph in the form
             Variable('x')=Number(a)
     """
-    max_iter = 3
     curr = input
     curr_measure = measure(input)
+    queue = [input]
     print(curr,"->",curr_measure," (start)")
-    while (not solved and max_iter>0):
-        for operation in oper:
-            new = operation(curr)
-            for n in new:
-                n_measure = measure(n)
-                path.append(n)
-                if n_measure == 0:
-                    solved = True
-                    print(path)
-                    break
-                else:
-                    solve(n,path,solved)
-        max_iter-=1
+    while queue and len(path)<max_depth:
+        curr = queue.pop()
+        break
+
     return path
 
-# inputs = ['x=-1','-x=1','2x=1','-2x=-1','-2x+1=1','-2x+1=-1','x=1']
 inputs = ['x+x=1','-x+x=1','2x-x=1','-2x+x=-1','-2x-x=1','-2x+1=-1','x=1','x+x+1+1=0','x+x+1+1=1+1+2x+2x','x-x+1-1=1']
-# inputs = ['-2*=1','-x+x=1','2x-x=1','-2x+x=-1','-2x-x=1','-2x+1=-1','x=1','x+x+1+1=0','x+x+1+1=1+1+2x+2x','x-x+1-1=1']
-# inputs = ['-2x-x=1']
 for i in inputs:
     r = parse(i)
-    s = reduceSum(reduceSum(parse(i))[0])
-    print(r,'->',s[0])
+    s = reduceSum(parse(i))
+    if s[1]:
+        print(r,'->',s[0][0])
 
-
-# for t in leftToRight(input):
-#     print(t)
 # print(solve(input,[]))
