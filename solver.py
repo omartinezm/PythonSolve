@@ -2,86 +2,123 @@ from parse import parse, standarize
 from structures import *
 import copy
 
-def reduceDiff(expr):
-    # Reduce all possible sum and differences operations at time
-    n_expr = copy.copy(expr)
-    left = reduceDiffArg(expr.args[0])
-    right = reduceDiffArg(expr.args[1])
-    res = Equal(*[reduceDiffArg(arg) for arg in n_expr.args])
-    return [res[0]],res[1]
+def reduceSum(expr):
+    """ This function reduces one posible operation of sum each side of the equality
+    """
+    left = reduceTerm(expr.args[0])
+    right = reduceTerm(expr.args[1])
+    if left[1] or right[1]:
+        return ([Equal(left[0],right[0])],True)
+    return ([expr], False)
 
-def reduceDiffArg(expr):
-    # Collects term by term in a sum
-    changed = False
-    if isinstance(expr,Add):
-        con_coef = 0
-        var_coef = 0
-        var_liter = None
-        for arg in expr.args:
-            (var_coef,var_liter),changed = addTerm(var_coef,var_liter,arg,)
-            if isinstance(arg,Number):
-                con_coef+=arg.value
-                changed = True
-            elif isinstance(arg,Negative):
-                if isinstance(arg.args[0],Number):
-                    con_coef-=arg.args[0].value
-                    changed = True
-                else:
-                    (var_coef,var_liter),changed = addTerm(var_coef,var_liter,arg.args[0],False)
-        res = None
-        if con_coef:
-            res = Number(con_coef)
-            changed = True
-        if var_coef:
-            temp = None
-            if var_coef ==1:
-                temp = var_liter
-            elif var_coef == -1:
-                temp = Negative(var_liter)
-            else:
-                temp = Product(Number(var_coef),var_liter)
-            if res:
-                res = Add(temp,res)
-            else:
-                res = temp
-        else:
-            res = Number(0)
-        return res
-    if len(expr.args)>1:
-        n_expr = copy.copy(expr)
-        n_expr.args = [reduceDiffArg(arg) for arg in n_expr.args]
-        return n_expr,changed
-
-    return expr
-   
-def addTerm(var_coef,var_liter,expr,positive=True):
-    # Add a term to previous computation
-    changed = False
-    var_liter = var_liter
-    if isinstance(expr,Variable):
-        var_coef +=1 if positive else -1
-        changed = True
-        var_liter = expr
-    elif isinstance(expr,Product):
-        if isinstance(expr.args[0],Number) and isinstance(expr.args[1],Variable):
-            var_coef += expr.args[0].value if positive else -expr.args[0].value
-            var_liter = expr.args[1]
-            changed = True
-        elif isinstance(expr.args[1],Number) and isinstance(expr.args[0],Variable):
-            var_coef += expr.args[1].value if positive else -expr.args[1].value
-            var_liter = expr.args[0]
-            changed = True
-        elif isinstance(expr.args[0],Negative) and isinstance(expr.args[1],Variable):
-            var_coef += expr.args[0].args[0].value if positive else -expr.args[0].args[0].value
-            var_liter = expr.args[1]
-            changed = True
-        elif isinstance(expr.args[1],Negative) and isinstance(expr.args[0],Variable):
-            var_coef += expr.args[1].args[0].value if positive else -expr.args[0].args[0].value
-            var_liter = expr.args[0]
-            changed = True
-    return (var_coef,var_liter),changed
+def reduceTerm(expr):
+    """ Utility to redice two terms
+    """
+    var_coef = 0
+    con_coef = 0
+    for n1,arg1 in enumerate(expr.args):
+        for n2,arg2 in enumerate(expr.args[n1+1:]):
+            if isinstance(arg1,Number) and isinstance(arg2,Number):
+                con_coef = arg1.args[0]+arg2.args[0]
+                n_args=expr.args
+                n_args.pop(n2)
+                n_args.pop(n1)
+                if con_coef != 0 or len(n_args)==0:
+                    n_args.append(Number(con_coef))
+                return (Add(*n_args),True)
+            if isinstance(arg1,Variable) and isinstance(arg2,Variable):
+                con_coef = 2
+                n_args=expr.args
+                n_args.pop(n2)
+                n_args.pop(n1)
+                n_args.append(Product(con_coef,arg1.args[0]))
+                return (Add(*n_args),True)
+            elif isinstance(arg1,Product) and isinstance(arg2,Variable):
+                added = False
+                if isinstance(arg1.args[0],Number) and isinstance(arg1.args[1],Variable):
+                    added = True
+                    var_coef += arg1.args[0].args[0]+1
+                elif isinstance(arg1.args[1],Number) and isinstance(arg1.args[1],Variable):
+                    added = True
+                    var_coef += arg1.args[1].args[0]+1
+                if added:
+                    n_args=expr.args
+                    n_args.pop(n2)
+                    n_args.pop(n1)
+                    if var_coef==0:
+                        n_args.append(Number(0))
+                    elif var_coef==0:
+                        n_args.append(arg2.args[0])
+                    else:
+                        n_args.append(Product(Number(var_coef),arg2.args[0]))
+                    if len(n_args)==1:
+                        return (n_args[0],True)
+                    else:
+                        return (Add(*n_args),True)
+            elif isinstance(arg1,Variable) and isinstance(arg2,Product):
+                added = False
+                if isinstance(arg2.args[0],Number) and isinstance(arg2.args[1],Variable):
+                    added = True
+                    var_coef += arg2.args[0].args[0]+1
+                elif isinstance(arg2.args[1],Number) and isinstance(arg2.args[1],Variable):
+                    added = True
+                    var_coef += arg2.args[1].args[0]+1
+                if added:
+                    n_args=expr.args
+                    n_args.pop(n2)
+                    n_args.pop(n1)
+                    if var_coef==0:
+                        n_args.append(Number(0))
+                    elif var_coef ==1:
+                        n_args.append(arg1.args[0])
+                    else:
+                        n_args.append(Product(Number(var_coef),arg1.args[0]))
+                    if len(n_args)==1:
+                        return (n_args[0],True)
+                    else:
+                        return (Add(*n_args),True)
+            elif isinstance(arg1,Product) and isinstance(arg2,Product):
+                added = False
+                if isinstance(arg1.args[0],Number) and isinstance(arg1.args[1],Variable) and isinstance(arg2.args[0],Number) and isinstance(arg2.args[1],Variable):
+                    added = True
+                    var_coef += arg1.args[0].args[0]+arg2.args[0].args[0]
+                if added:
+                    n_args=expr.args
+                    n_args.pop(n2)
+                    n_args.pop(n1)
+                    if var_coef==0:
+                        n_args.append(Number(0))
+                    elif var_coef == 1:
+                        n_args.append(arg1.args[1])
+                    else:
+                        n_args.append(Product(Number(var_coef),arg1.args[1]))
+                    if len(n_args)==1:
+                        return (n_args[0],True)
+                    else:
+                        return (Add(*n_args),True)
+            elif isinstance(arg1,Negative) or isinstance(arg2,Negative):
+                res = None
+                if isinstance(arg1,Negative) and not isinstance(arg2,Negative):
+                    dummy_expr = Add(Product(Number(-1),arg1.args[0]),arg2)
+                elif not isinstance(arg1,Negative) and isinstance(arg2,Negative):
+                    dummy_expr = Add(arg1,Product(Number(-1),arg2.args[0]))
+                else:# isinstance(arg1,Negative) and isinstance(arg2,Negative):
+                    dummy_expr = Add(Product(Number(-1),arg1.args[0]),Product(Number(-1),arg2))
+                res = reduceTerm(dummy_expr)
+                if res[1]:
+                    n_args=expr.args
+                    n_args.pop(n2)
+                    n_args.pop(n1)
+                    n_args.append(res[0])
+                    if len(n_args) == 0:
+                        return (n_args[0],True)
+                    else:
+                        return (Add(*n_args),True)
+    return (expr,False)
     
 def leftToRight(expr):
+    """ Moves a term from the left to right of que equation
+    """
     left = expr.args[0]
     right = expr.args[1]
     res = [expr]
@@ -179,38 +216,12 @@ def multiplyByMinus(expr):
     right = expr.args[1]
     left = left.args[0] if isinstance(left,Negative) else Negative(left)
     right = right.args[0] if isinstance(right,Negative) else Negative(right)
-    return reduceSign(Equal(left,right))
+    return standarize(Equal(left,right))
 
-def reduceSign(expr):
-    left = negProduct(expr.args[0])
-    right = negProduct(expr.args[1])
-    return [standarize(Equal(left,right))]
-
-
-def negProduct(expr):
-    """ This function transforms expressions to a better expression
-        
-        >   Product(Negative(TERM1),TERM2,...) into Negative(Product(TERM1,TERM2,...))
-        >   Product(TERM1,Negative(TERM2),...) into Negative(Product(TERM1,TERM2,...))
-    """
-    if isinstance(expr,Product):
-        n_args = []
-        negative = False
-        for arg in expr.args:
-            if isinstance(arg,Negative):
-                n_args.extend(negProduct(arg).args)
-                negative = not negative
-            elif isinstance(arg,Number) and arg.args[0]<0:
-                n_args.append(Number(-arg.args[0]))
-                negative = not negative
-            else:
-                n_args.append(arg)
-        return Negative(Product(*n_args)) if negative else Product(*n_args)
-    else:
-        n_expr = copy.copy(expr)
-        if len(n_expr.args)>1:
-            n_expr.args=[negProduct(arg) for arg in n_expr.args]
-        return n_expr
+# def reduceSign(expr):
+#     left = negProduct(expr.args[0])
+#     right = negProduct(expr.args[1])
+#     return [standarize(Equal(left,right))]
 
 def measure(graph):
     left = graph.args[0]
@@ -239,7 +250,7 @@ def depth(node,p_res):
     return res
 
 
-oper = [reduceDiff,multiplyByMinus,leftToRight,rightToLeft,productToQuotient,reduceQuotient]
+oper = [reduceSum,multiplyByMinus,leftToRight,rightToLeft,productToQuotient,reduceQuotient]
 
 input=parse('x+2=1')
 
@@ -271,15 +282,15 @@ def solve(input,path,solved=False):
     return path
 
 # inputs = ['x=-1','-x=1','2x=1','-2x=-1','-2x+1=1','-2x+1=-1','x=1']
-# inputs = ['x+x=1','-x+x=1','2x-x=1','-2x+x=-1','-2x-x=1','-2x+1=-1','x=1','x+x+1+1=0','x+x+1+1=1+1+2x+2x','x-x+1-1=1']
+inputs = ['x+x=1','-x+x=1','2x-x=1','-2x+x=-1','-2x-x=1','-2x+1=-1','x=1','x+x+1+1=0','x+x+1+1=1+1+2x+2x','x-x+1-1=1']
 # inputs = ['-2*=1','-x+x=1','2x-x=1','-2x+x=-1','-2x-x=1','-2x+1=-1','x=1','x+x+1+1=0','x+x+1+1=1+1+2x+2x','x-x+1-1=1']
-# inputs = ['2x=3x+1']
-# for i in inputs:
-#     r = parse(i)
-#     for s in rightToLeft(parse(i)):
-#         print(r,'->',s,': ',measure(s))
+# inputs = ['-2x-x=1']
+for i in inputs:
+    r = parse(i)
+    s = reduceSum(reduceSum(parse(i))[0])
+    print(r,'->',s[0])
 
 
 # for t in leftToRight(input):
 #     print(t)
-print(solve(input,[]))
+# print(solve(input,[]))

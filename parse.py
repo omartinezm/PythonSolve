@@ -25,6 +25,7 @@ def parse(str):
 def standarize(expr):
     n_expr = collapser(expr)
     n_expr = negNumber(n_expr)
+    n_expr = negProduct(n_expr)
     return n_expr
 
 def collapser(expr):
@@ -62,6 +63,27 @@ def negNumber(expr):
             return n_expr
     return expr
 
+def negProduct(expr):
+    """ This function transforms expressions to a better expression
+        
+        >   Negative(Product(TERM1,TERM2,...)) into Product(Negative(TERM1),TERM2,...)
+    """
+    if isinstance(expr,Negative):
+        n_args = []
+        for arg1 in expr.args:
+            if isinstance(arg1,Product):
+                for n, arg2 in enumerate(arg1.args):
+                    if isinstance(arg2,Number):
+                        n_args=arg1.args
+                        n_args.pop(n)
+                        n_args.insert(0,Number(-arg2.args[0]))
+                        return Product(*n_args)
+        return expr
+    else:
+        n_expr = copy.copy(expr)
+        if len(n_expr.args)>1:
+            n_expr.args=[negProduct(arg) for arg in n_expr.args]
+        return n_expr
 
 def constructTokens(tokens):
     """ Heart of the parser: transform the tokens into readable object.
