@@ -20,7 +20,12 @@ def parse(str):
         tokensR = tokenize(BytesIO(right.encode('utf-8')).readline)
         result = [constructTokens(tokensL),constructTokens(tokensR)]
         res = Equal(eval(untokenize(result[0])),eval(untokenize(result[1])))
-        return collapser(res)
+        return standarize(res)
+
+def standarize(expr):
+    n_expr = collapser(expr)
+    n_expr = negNumber(n_expr)
+    return n_expr
 
 def collapser(expr):
     """ This function transforms expressions to a better expression
@@ -41,6 +46,22 @@ def collapser(expr):
         if len(n_expr.args)>1:
             n_expr.args=[collapser(arg) for arg in n_expr.args]
         return n_expr
+
+def negNumber(expr):
+    # This function transform "Negative(Number(x))"" into "Number(-x)"
+    if isinstance(expr,Negative):
+        if isinstance(expr.args[0],Number):
+            return Number(-expr.args[0].args[0])
+    else:
+        if len(expr.args)>1:
+            n_expr = copy.copy(expr)
+            n_args = []
+            for arg in n_expr.args:
+                n_args.append(negNumber(arg))
+            n_expr.args = n_args
+            return n_expr
+    return expr
+
 
 def constructTokens(tokens):
     """ Heart of the parser: transform the tokens into readable object.

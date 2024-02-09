@@ -1,30 +1,37 @@
-from parse import parse, collapser
+from parse import parse, standarize
 from structures import *
 import copy
 
 def reduceDiff(expr):
     # Reduce all possible sum and differences operations at time
     n_expr = copy.copy(expr)
-    return [Equal(*[reduceDiffArg(arg) for arg in n_expr.args])]
+    left = reduceDiffArg(expr.args[0])
+    right = reduceDiffArg(expr.args[1])
+    res = Equal(*[reduceDiffArg(arg) for arg in n_expr.args])
+    return [res[0]],res[1]
 
 def reduceDiffArg(expr):
     # Collects term by term in a sum
+    changed = False
     if isinstance(expr,Add):
         con_coef = 0
         var_coef = 0
         var_liter = None
         for arg in expr.args:
-            (var_coef,var_liter) = addTerm(var_coef,var_liter,arg,)
+            (var_coef,var_liter),changed = addTerm(var_coef,var_liter,arg,)
             if isinstance(arg,Number):
                 con_coef+=arg.value
+                changed = True
             elif isinstance(arg,Negative):
                 if isinstance(arg.args[0],Number):
                     con_coef-=arg.args[0].value
+                    changed = True
                 else:
-                    (var_coef,var_liter) = addTerm(var_coef,var_liter,arg.args[0],False)
+                    (var_coef,var_liter),changed = addTerm(var_coef,var_liter,arg.args[0],False)
         res = None
         if con_coef:
             res = Number(con_coef)
+            changed = True
         if var_coef:
             temp = None
             if var_coef ==1:
@@ -43,30 +50,36 @@ def reduceDiffArg(expr):
     if len(expr.args)>1:
         n_expr = copy.copy(expr)
         n_expr.args = [reduceDiffArg(arg) for arg in n_expr.args]
-        return n_expr
+        return n_expr,changed
 
     return expr
    
 def addTerm(var_coef,var_liter,expr,positive=True):
     # Add a term to previous computation
+    changed = False
     var_liter = var_liter
     if isinstance(expr,Variable):
         var_coef +=1 if positive else -1
+        changed = True
         var_liter = expr
     elif isinstance(expr,Product):
         if isinstance(expr.args[0],Number) and isinstance(expr.args[1],Variable):
             var_coef += expr.args[0].value if positive else -expr.args[0].value
             var_liter = expr.args[1]
+            changed = True
         elif isinstance(expr.args[1],Number) and isinstance(expr.args[0],Variable):
             var_coef += expr.args[1].value if positive else -expr.args[1].value
             var_liter = expr.args[0]
+            changed = True
         elif isinstance(expr.args[0],Negative) and isinstance(expr.args[1],Variable):
             var_coef += expr.args[0].args[0].value if positive else -expr.args[0].args[0].value
             var_liter = expr.args[1]
+            changed = True
         elif isinstance(expr.args[1],Negative) and isinstance(expr.args[0],Variable):
             var_coef += expr.args[1].args[0].value if positive else -expr.args[0].args[0].value
             var_liter = expr.args[0]
-    return (var_coef,var_liter)
+            changed = True
+    return (var_coef,var_liter),changed
     
 def leftToRight(expr):
     left = expr.args[0]
@@ -82,7 +95,8 @@ def leftToRight(expr):
                 temp = n_args[0]
             else:
                 temp = Add(*n_args)
-            res.append(collapser(Equal(temp,Add(right,Negative(term))) if not isinstance(term,Negative) else Equal(temp,Add(right,term.args[0]))))
+            res.append(standarize(Equal(temp,Add(right,Negative(term))) if not isinstance(term,Negative) else Equal(temp,Add(right,term.args[0]))))
+            print('---->',res[-1])
     elif isinstance(left,Difference):
         for n, arg in enumerate(left.args):
             term = arg
@@ -93,9 +107,9 @@ def leftToRight(expr):
                 temp = n_args[0]
             else:
                 temp = Add(*n_args)
-            res.append(collapser(Equal(temp,Add(right,term))))
+            res.append(standarize(Equal(temp,Add(right,term))))
     elif isinstance(left,Variable) or isinstance(left,Number) or isinstance(left,Negative):
-        res.append(collapser(Equal(Number(0),Add(right,Negative(left))) if not isinstance(left,Negative) else Equal(Number(0),Add(right,left.args[0]))))
+        res.append(standarize(Equal(Number(0),Add(right,Negative(left))) if not isinstance(left,Negative) else Equal(Number(0),Add(right,left.args[0]))))
     return res
     
 def rightToLeft(expr):
@@ -112,7 +126,7 @@ def rightToLeft(expr):
                 temp = n_args[0]
             else:
                 temp = Add(*n_args)
-            res.append(collapser(Equal(Add(left,Negative(term)),temp) if not isinstance(term,Negative) else Equal(Add(left,term.args[0]),temp)))
+            res.append(standarize(Equal(Add(left,Negative(term)),temp) if not isinstance(term,Negative) else Equal(Add(left,term.args[0]),temp)))
     elif isinstance(right,Difference):
         for n, arg in enumerate(right.args):
             term = arg
@@ -123,9 +137,9 @@ def rightToLeft(expr):
                 temp = n_args[0]
             else:
                 temp = Add(*n_args)
-            res.append(collapser(Equal(Add(left,term),temp)))
+            res.append(standarize(Equal(Add(left,term),temp)))
     elif isinstance(right,Variable) or isinstance(right,Number) or isinstance(right,Negative):
-        res.append(collapser(Equal(Add(left,Negative(right)),Number(0)) if not isinstance(right,Negative) else Equal(Add(left,right.args[0]),Number(0))))
+        res.append(standarize(Equal(Add(left,Negative(right)),Number(0)) if not isinstance(right,Negative) else Equal(Add(left,right.args[0]),Number(0))))
     return res
 
 def productToQuotient(expr):
@@ -170,7 +184,7 @@ def multiplyByMinus(expr):
 def reduceSign(expr):
     left = negProduct(expr.args[0])
     right = negProduct(expr.args[1])
-    return [Equal(left,right)]
+    return [standarize(Equal(left,right))]
 
 
 def negProduct(expr):
@@ -203,11 +217,11 @@ def measure(graph):
     right = graph.args[1]
     depthL = depth(left,[1,0])
     depthR = depth(right,[1,0])
-    res = (1-depthL[1])**2+(1-depthL[1])**2+(1-depthR[0])**2+(1-depthL[0])**2
+    res = (depthL[1]-1)**2+(1-depthL[1])**2+(1-depthR[0])**2+(1-depthL[0])**2
     return res
 
 def depth(node,p_res):
-    # This function find the depth and the number of leaves. Return a list [depth,leaves].
+    # This function find the depth of the graph. Return a list [depth,leaves].
     res = p_res
     if isinstance(node,Variable) or isinstance(node,Number):
         res[1] += 1
@@ -228,26 +242,31 @@ def depth(node,p_res):
 oper = [reduceDiff,multiplyByMinus,leftToRight,rightToLeft,productToQuotient,reduceQuotient]
 
 input=parse('x+2=1')
-def solve(input):
-    path = [str(input)]
-    max_iter = 10
+
+
+path = []
+
+def solve(input,path,solved=False):
+    """
+        This function search the path from the equation graph to a graph in the form
+            Variable('x')=Number(a)
+    """
+    max_iter = 3
     curr = input
     curr_measure = measure(input)
     print(curr,"->",curr_measure," (start)")
-    while curr_measure>0 and max_iter>0:
-        change = False
+    while (not solved and max_iter>0):
         for operation in oper:
             new = operation(curr)
             for n in new:
                 n_measure = measure(n)
-                print(curr,'->',n,': ',operation.__name__,'->',n_measure)
-                if n_measure<curr_measure:
-                    curr=copy.copy(n)
-                    curr_measure=n_measure
-                    change = True
-            if change:
-                path.append(str(curr))
-                break
+                path.append(n)
+                if n_measure == 0:
+                    solved = True
+                    print(path)
+                    break
+                else:
+                    solve(n,path,solved)
         max_iter-=1
     return path
 
@@ -263,4 +282,4 @@ def solve(input):
 
 # for t in leftToRight(input):
 #     print(t)
-print(solve(input))
+print(solve(input,[]))
