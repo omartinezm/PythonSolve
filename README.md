@@ -1,3 +1,3 @@
 # PythonSolve
 
-A simple implementation of first order equation solver on Python
+A simple implementation of a first order equation solver on Python
